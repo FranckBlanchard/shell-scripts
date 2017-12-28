@@ -1,0 +1,2 @@
+#!/bin/bash
+php -S localhost:8000 -ddisplay_errors=1 -dzend_extension=xdebug.so -dxdebug.remote_enable=1 -dxdebug.remote_autostart=1 -dxdebug.remote_port=3004 -t public
