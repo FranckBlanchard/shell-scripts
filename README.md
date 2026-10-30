@@ -15,3 +15,13 @@ Chaque script est enregistré dans un repertoire dédié.
 
 ---
 
+### weather
+
+
+**weather** affiche la météo actuel d'une ville dans le monde.
+
+
+[👉 Voir la documentation complète et l'usage de ce script](./weather/README.md)
+
+---
+
