@@ -29,35 +29,7 @@ show_help() {
     echo "  -h, --help   Affiche ce message d'aide"
 }
 
-# Analyse des options (--json, -h, --help)
-RAW_JSON=false
-ARGS=()
-
-for arg in "$@"; do
-    case "$arg" in
-        --json)
-            RAW_JSON=true
-            ;;
-        -h|--help)
-            show_help
-            exit 0
-            ;;
-        *)
-            ARGS+=("$arg")
-            ;;
-    esac
-done
-
-# Vérification : si aucun nom de ville n'est fourni, afficher l'aide et quitter
-if [ "${#ARGS[@]}" -eq 0 ]; then
-    show_help
-    exit 0
-fi
-
-# Reconstruction de la chaîne de recherche de la ville à partir des arguments restants
-SEARCH_INPUT="${ARGS[*]}"
-
-# Vérification des dépendances
+# Fonction de vérification des dépendances
 check_command() {
     if ! command -v "$1" &> /dev/null; then
         echo "Erreur : La commande '$1' est requise mais n'est pas installée." >&2
@@ -65,9 +37,6 @@ check_command() {
         exit 1
     fi
 }
-
-check_command curl
-check_command jq
 
 # Fonction de géocodage intelligente et tolérante
 get_coordinates() {
@@ -142,6 +111,68 @@ get_weather_description() {
     esac
 }
 
+# Extraction des données pour l'affichage classique
+get_weather_data() {
+    TEMP=$(echo "$RESPONSE" | jq -r '.current.temperature_2m')
+    TEMP_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.temperature_2m')
+    APPARENT=$(echo "$RESPONSE" | jq -r '.current.apparent_temperature')
+    HUMIDITY=$(echo "$RESPONSE" | jq -r '.current.relative_humidity_2m')
+    HUM_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.relative_humidity_2m')
+    WIND=$(echo "$RESPONSE" | jq -r '.current.wind_speed_10m')
+    WIND_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.wind_speed_10m')
+    CODE=$(echo "$RESPONSE" | jq -r '.current.weather_code')
+    PRESSURE=$(echo "$RESPONSE" | jq -r '.current.pressure_msl')
+    PRESS_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.pressure_msl')
+}
+
+# Fonction d'affichage de la météo
+display_weather() {
+    echo "=================================================="
+    echo " Météo actuelle à $LOCATION_STR"
+    echo "=================================================="
+    echo " Heure locale (ici)  : ${LOCAL_TIME}"
+    echo " Heure du lieu       : ${DEST_TIME}"
+    echo "--------------------------------------------------"
+    echo " Conditions  		: ${CONDITION}"
+    echo " Température 		: ${TEMP} ${TEMP_UNIT} (Ressenti : ${APPARENT} ${TEMP_UNIT})"
+    echo " Humidité    		: ${HUMIDITY} ${HUM_UNIT}"
+    echo " Vent        		: ${WIND} ${WIND_UNIT}"
+    echo " Pression atmosphérique   : ${PRESSURE} ${PRESS_UNIT}"
+    echo "=================================================="
+}
+
+# Analyse des options (--json, -h, --help)
+RAW_JSON=false
+ARGS=()
+
+for arg in "$@"; do
+    case "$arg" in
+        --json)
+            RAW_JSON=true
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            ARGS+=("$arg")
+            ;;
+    esac
+done
+
+# Vérification : si aucun nom de ville n'est fourni, afficher l'aide et quitter
+if [ "${#ARGS[@]}" -eq 0 ]; then
+    show_help
+    exit 0
+fi
+
+# Reconstruction de la chaîne de recherche de la ville à partir des arguments restants
+SEARCH_INPUT="${ARGS[*]}"
+
+# Vérification des dépendances
+check_command curl
+check_command jq
+
 # Exécution du géocodage
 get_coordinates "$SEARCH_INPUT" || exit 1
 
@@ -160,17 +191,7 @@ if [ "$RAW_JSON" = true ]; then
     exit 0
 fi
 
-# Extraction des données pour l'affichage classique
-TEMP=$(echo "$RESPONSE" | jq -r '.current.temperature_2m')
-TEMP_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.temperature_2m')
-APPARENT=$(echo "$RESPONSE" | jq -r '.current.apparent_temperature')
-HUMIDITY=$(echo "$RESPONSE" | jq -r '.current.relative_humidity_2m')
-HUM_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.relative_humidity_2m')
-WIND=$(echo "$RESPONSE" | jq -r '.current.wind_speed_10m')
-WIND_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.wind_speed_10m')
-CODE=$(echo "$RESPONSE" | jq -r '.current.weather_code')
-PRESSURE=$(echo "$RESPONSE" | jq -r '.current.pressure_msl')
-PRESS_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.pressure_msl')
+get_weather_data
 
 CONDITION=$(get_weather_description "$CODE")
 
@@ -185,16 +206,5 @@ LOCAL_TIME=$(date +"%Y-%m-%d %H:%M")
 # Heure exacte du lieu calculée via son fuseau horaire
 DEST_TIME=$(TZ="$API_TZ" date +"%Y-%m-%d %H:%M")
 
-# Affichage propre
-echo "=================================================="
-echo " Météo actuelle à $LOCATION_STR"
-echo "=================================================="
-echo " Heure locale (ici)  : ${LOCAL_TIME}"
-echo " Heure du lieu       : ${DEST_TIME}"
-echo "--------------------------------------------------"
-echo " Conditions  		: ${CONDITION}"
-echo " Température 		: ${TEMP} ${TEMP_UNIT} (Ressenti : ${APPARENT} ${TEMP_UNIT})"
-echo " Humidité    		: ${HUMIDITY} ${HUM_UNIT}"
-echo " Vent        		: ${WIND} ${WIND_UNIT}"
-echo " Pression atmosphérique   : ${PRESSURE} ${PRESS_UNIT}"
-echo "=================================================="
+# On affiche la météo
+display_weather
