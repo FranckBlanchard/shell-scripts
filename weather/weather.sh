@@ -123,6 +123,27 @@ get_weather_data() {
     CODE=$(echo "$RESPONSE" | jq -r '.current.weather_code')
     PRESSURE=$(echo "$RESPONSE" | jq -r '.current.pressure_msl')
     PRESS_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.pressure_msl')
+    CONDITION=$(get_weather_description "$CODE")
+    LOCATION_STR="$MATCHED_NAME"
+    [ -n "$REGION" ] && LOCATION_STR="$LOCATION_STR, $REGION"
+    [ -n "$COUNTRY" ] && LOCATION_STR="$LOCATION_STR, $COUNTRY"
+    # Extraction du fuseau horaire renvoyé par l'API (ex: America/Toronto)
+    API_TZ=$(echo "$RESPONSE" | jq -r '.timezone // "UTC"')
+    # Extraction et mise en forme des dates/heures
+    LOCAL_TIME=$(date +"%Y-%m-%d %H:%M")
+    # Heure exacte du lieu calculée via son fuseau horaire
+    DEST_TIME=$(TZ="$API_TZ" date +"%Y-%m-%d %H:%M")
+}
+
+# Fonction de requête api open-meteo.com
+fetch_weather() {
+    API_URL="https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,pressure_msl&timezone=auto&forecast_days=1"
+    RESPONSE=$(curl -s "$API_URL")
+
+    if [ -z "$RESPONSE" ]; then
+        echo "Erreur : Impossible de contacter l'API Open-Meteo." >&2
+        exit 1
+    fi
 }
 
 # Fonction d'affichage de la météo
@@ -176,14 +197,8 @@ check_command jq
 # Exécution du géocodage
 get_coordinates "$SEARCH_INPUT" || exit 1
 
-# Requête météo
-API_URL="https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,pressure_msl&timezone=auto&forecast_days=1"
-RESPONSE=$(curl -s "$API_URL")
-
-if [ -z "$RESPONSE" ]; then
-    echo "Erreur : Impossible de contacter l'API Open-Meteo." >&2
-    exit 1
-fi
+# Récupération des données météo
+fetch_weather
 
 # Si l'option --json est présente, on affiche directement le JSON brut formaté
 if [ "$RAW_JSON" = true ]; then
@@ -191,20 +206,8 @@ if [ "$RAW_JSON" = true ]; then
     exit 0
 fi
 
+# On initialise les données
 get_weather_data
-
-CONDITION=$(get_weather_description "$CODE")
-
-LOCATION_STR="$MATCHED_NAME"
-[ -n "$REGION" ] && LOCATION_STR="$LOCATION_STR, $REGION"
-[ -n "$COUNTRY" ] && LOCATION_STR="$LOCATION_STR, $COUNTRY"
-
-# Extraction du fuseau horaire renvoyé par l'API (ex: America/Toronto)
-API_TZ=$(echo "$RESPONSE" | jq -r '.timezone // "UTC"')
-# Extraction et mise en forme des dates/heures
-LOCAL_TIME=$(date +"%Y-%m-%d %H:%M")
-# Heure exacte du lieu calculée via son fuseau horaire
-DEST_TIME=$(TZ="$API_TZ" date +"%Y-%m-%d %H:%M")
 
 # On affiche la météo
 display_weather
