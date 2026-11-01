@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
+set -uo pipefail
+
 # Nom		: weather.sh
-
 # Description	: Ce script retourne des infos météorologique d'une ville dans le monde.
-# 		Nous utilisons l'api de open-meteo.com, la documentation peux être trouvé a  https://open-meteo.com/en/docs
-
-# Auteur	: Franck Blanchard
-
+# 		        Nous utilisons l'api de open-meteo.com, la documentation peux être trouvé a  https://open-meteo.com/en/docs
+#
+# Auteur	: Franck Blanchard info@aztequemedia.com
+#
 # Dépendances:
 #   - jq pour traiter les données au format json
 #   - curl pour les requêtes réseaux
@@ -183,52 +184,48 @@ display_weather() {
 }
 
 # --- Début du script ---
-# Analyse des options (--json, -h, --help)
-RAW_JSON=false
-ARGS=()
+main() {
 
-for arg in "$@"; do
-    case "$arg" in
-        --json)
-            RAW_JSON=true
-            ;;
-        -h|--help)
-            show_help
-            exit 0
-            ;;
-        *)
-            ARGS+=("$arg")
-            ;;
-    esac
-done
+    # Analyse des options (--json, -h, --help)
+    RAW_JSON=false
+    ARGS=()
 
-# Vérification : si aucun nom de ville n'est fourni, afficher l'aide et quitter
-if [ "${#ARGS[@]}" -eq 0 ]; then
-    show_help
-    exit 0
-fi
-
-# Reconstruction de la chaîne de recherche de la ville à partir des arguments restants
-SEARCH_INPUT="${ARGS[*]}"
-
-# Vérification des dépendances
-check_command curl
-check_command jq
-
-# Exécution du géocodage
-get_coordinates "$SEARCH_INPUT" || exit 1
-
-# Récupération des données météo
-fetch_weather
-
-# Si l'option --json est présente, on affiche directement le JSON brut formaté
-if [ "$RAW_JSON" = true ]; then
-    echo "$RESPONSE" | jq .
-    exit 0
-fi
-
-# On initialise les données
-get_weather_data
-
-# On affiche la météo
-display_weather
+    for arg in "$@"; do
+        case "$arg" in
+            --json)
+                RAW_JSON=true
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            *)
+                ARGS+=("$arg")
+                ;;
+        esac
+    done
+    # Vérification : si aucun nom de ville n'est fourni, afficher l'aide et quitter
+    if [ "${#ARGS[@]}" -eq 0 ]; then
+        show_help
+        exit 0
+    fi
+    # Reconstruction de la chaîne de recherche de la ville à partir des arguments restants
+    SEARCH_INPUT="${ARGS[*]}"
+    # Vérification des dépendances
+    check_command curl
+    check_command jq
+    # Exécution du géocodage
+    get_coordinates "$SEARCH_INPUT" || exit 1
+    # Récupération des données météo
+    fetch_weather
+    # Si l'option --json est présente, on affiche directement le JSON brut formaté
+    if [ "$RAW_JSON" = true ]; then
+        echo "$RESPONSE" | jq .
+        exit 0
+    fi
+    # On initialise les données
+    get_weather_data
+    # On affiche la météo
+    display_weather
+}
+main "$@"
