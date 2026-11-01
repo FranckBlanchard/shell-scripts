@@ -135,13 +135,26 @@ get_weather_data() {
     DEST_TIME=$(TZ="$API_TZ" date +"%Y-%m-%d %H:%M")
 }
 
+# Fonction pour construire la requête API
+build_api_url() {
+    local metrics="$1"
+    local API_URL="https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=${metrics}&timezone=auto&forecast_days=1"
+    echo "$API_URL"
+}
+
 # Fonction de requête api open-meteo.com
 fetch_weather() {
-    API_URL="https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,pressure_msl&timezone=auto&forecast_days=1"
+    local metrics="temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,pressure_msl"
+    local API_URL=$(build_api_url "$metrics")
     RESPONSE=$(curl -s "$API_URL")
 
     if [ -z "$RESPONSE" ]; then
         echo "Erreur : Impossible de contacter l'API Open-Meteo." >&2
+        exit 1
+    fi
+    # Vérification que la réponse reçue est bien un JSON valide
+    if ! echo "$RESPONSE" | jq empty 2>/dev/null; then
+        echo "Erreur : La réponse de l'API n'est pas un JSON valide." >&2
         exit 1
     fi
 }
@@ -154,8 +167,8 @@ display_weather() {
     echo " Heure locale (ici)  : ${LOCAL_TIME}"
     echo " Heure du lieu       : ${DEST_TIME}"
     echo "--------------------------------------------------"
-    echo " Conditions  		: ${CONDITION}"
     echo " Température 		: ${TEMP} ${TEMP_UNIT} (Ressenti : ${APPARENT} ${TEMP_UNIT})"
+    echo " Conditions  		: ${CONDITION}"    
     echo " Humidité    		: ${HUMIDITY} ${HUM_UNIT}"
     echo " Vent        		: ${WIND} ${WIND_UNIT}"
     echo " Pression atmosphérique   : ${PRESSURE} ${PRESS_UNIT}"

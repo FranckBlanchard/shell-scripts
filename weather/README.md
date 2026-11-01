@@ -4,15 +4,11 @@
 
 ### Installation
 
-Copier le script dans un répertoire et rendez le exécutable avec la commande :
-	
-```Bash
-chmod +x weather.sh
-```
-Imaginons que vous ayez un repertoire */scripts* dans votre repertoire personnel dans lequel vous avez copier **weather.sh**
+Vous pouvez télécharger directement le script depuis le dépôt et le rendre exécutable avec les commandes suivantes :
 
-```Bash
-chmod +x ~/scripts/weather.sh
+```bash
+curl -o weather.sh [https://raw.githubusercontent.com/FranckBlanchard/shell-scripts/master/weather/weather.sh](https://raw.githubusercontent.com/FranckBlanchard/shell-scripts/master/weather/weather.sh)
+chmod +x weather.sh
 ```
 
 Pour aller plus loin, vous pouvez avoir un répertoire */bin* dans votre *home*, et que celui-ci fasse partie du **PATH** de votre système
