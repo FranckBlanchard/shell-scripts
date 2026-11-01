@@ -7,7 +7,7 @@
 Vous pouvez télécharger directement le script depuis le dépôt et le rendre exécutable avec les commandes suivantes :
 
 ```bash
-curl -o weather.sh [https://raw.githubusercontent.com/FranckBlanchard/shell-scripts/master/weather/weather.sh](https://raw.githubusercontent.com/FranckBlanchard/shell-scripts/master/weather/weather.sh)
+curl -o weather.sh https://raw.githubusercontent.com/FranckBlanchard/shell-scripts/master/weather/weather.sh
 chmod +x weather.sh
 ```
 
