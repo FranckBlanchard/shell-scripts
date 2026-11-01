@@ -12,7 +12,7 @@ chmod +x weather.sh
 ```
 
 Pour aller plus loin, vous pouvez avoir un répertoire */bin* dans votre *home*, et que celui-ci fasse partie du **PATH** de votre système
-vous pous pouvez faire un lien symboloque comme ceci:100:
+vous pous pouvez faire un lien symbolique comme ceci:
 
 ```Bash
 ln -s $HOME/scripts/weather/weather.sh $HOME/bin/weather

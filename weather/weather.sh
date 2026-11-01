@@ -114,6 +114,8 @@ get_weather_description() {
 # Extraction des données pour l'affichage classique
 get_weather_data() {
     TEMP=$(echo "$RESPONSE" | jq -r '.current.temperature_2m')
+    TEMP_MAX=$(echo "$RESPONSE" | jq -r '.daily.temperature_2m_max[0]')
+    TEMP_MIN=$(echo "$RESPONSE" | jq -r '.daily.temperature_2m_min[0]')
     TEMP_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.temperature_2m')
     APPARENT=$(echo "$RESPONSE" | jq -r '.current.apparent_temperature')
     HUMIDITY=$(echo "$RESPONSE" | jq -r '.current.relative_humidity_2m')
@@ -137,15 +139,18 @@ get_weather_data() {
 
 # Fonction pour construire la requête API
 build_api_url() {
-    local metrics="$1"
-    local API_URL="https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=${metrics}&timezone=auto&forecast_days=1"
+    local current_metrics="$1"
+    local daily_metrics="$2"
+    local API_URL="https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=${current_metrics}&daily=${daily_metrics}&timezone=auto&forecast_days=1"
     echo "$API_URL"
 }
 
 # Fonction de requête api open-meteo.com
 fetch_weather() {
-    local metrics="temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,pressure_msl"
-    local API_URL=$(build_api_url "$metrics")
+    local current_metrics="temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,pressure_msl"
+    local daily_metrics="temperature_2m_max,temperature_2m_min"
+
+    local API_URL=$(build_api_url "$current_metrics" "$daily_metrics")
     RESPONSE=$(curl -s "$API_URL")
 
     if [ -z "$RESPONSE" ]; then
@@ -168,6 +173,8 @@ display_weather() {
     echo " Heure du lieu       : ${DEST_TIME}"
     echo "--------------------------------------------------"
     echo " Température 		: ${TEMP} ${TEMP_UNIT} (Ressenti : ${APPARENT} ${TEMP_UNIT})"
+    echo " Température Maximum de la journée  : ${TEMP_MAX} ${TEMP_UNIT}"
+    echo " Température Minimum de la journée  : ${TEMP_MIN} ${TEMP_UNIT}"
     echo " Conditions  		: ${CONDITION}"    
     echo " Humidité    		: ${HUMIDITY} ${HUM_UNIT}"
     echo " Vent        		: ${WIND} ${WIND_UNIT}"
@@ -175,6 +182,7 @@ display_weather() {
     echo "=================================================="
 }
 
+# --- Début du script ---
 # Analyse des options (--json, -h, --help)
 RAW_JSON=false
 ARGS=()
