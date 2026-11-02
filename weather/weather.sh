@@ -12,6 +12,8 @@ set -uo pipefail
 #   - jq pour traiter les données au format json
 #   - curl pour les requêtes réseaux
 
+# Version du script
+VERSION="0.1.0"
 
 # Fonction d'affichage de l'aide
 show_help() {
@@ -28,6 +30,7 @@ show_help() {
     echo "Options :"
     echo "  --json       Affiche le résultat brut au format JSON"
     echo "  -h, --help   Affiche ce message d'aide"
+    echo "  -v, --version Affiche la version du script"
 }
 
 # Fonction de vérification des dépendances
@@ -89,49 +92,56 @@ get_coordinates() {
 # Fonction pour traduire le weather_code WMO
 get_weather_description() {
     case "$1" in
-        0) echo "Ciel dégagé" ;;
-        1) echo "Principalement dégagé" ;;
-        2) echo "Partiellement nuageux" ;;
-        3) echo "Couvert" ;;
-        45|48) echo "Brouillard" ;;
-        51|53|55) echo "Bruine" ;;
-        56|57) echo "Bruine verglaçante" ;;
-        61) echo "Pluie légère" ;;
-        63) echo "Pluie modérée" ;;
-        65) echo "Pluie forte" ;;
-        66|67) echo "Pluie verglaçante" ;;
-        71) echo "Neige légère" ;;
-        73) echo "Neige modérée" ;;
-        75) echo "Neige forte" ;;
-        77) echo "Grains de neige" ;;
-        80|81|82) echo "Averses de pluie" ;;
-        85|86) echo "Averses de neige" ;;
-        95) echo "Orage" ;;
-        96|99) echo "Orage avec grêle" ;;
-        *) echo "Inconnu (code $1)" ;;
+        0) echo "☀️ Ciel dégagé" ;;
+        1) echo "🌤️ Principalement dégagé" ;;
+        2) echo "⛅ Partiellement nuageux" ;;
+        3) echo "☁️ Couvert" ;;
+        45|48) echo "🌫️ Brouillard" ;;
+        51|53|55) echo "🌦️ Bruine" ;;
+        56|57) echo "🧊 Bruine verglaçante" ;;
+        61) echo "🌧️ Pluie légère" ;;
+        63) echo "🌧️ Pluie modérée" ;;
+        65) echo "🌧️☔ Pluie forte" ;;
+        66|67) echo "🧊🌧️ Pluie verglaçante" ;;
+        71) echo "🌨️ Neige légère" ;;
+        73) echo "❄️ Neige modérée" ;;
+        75) echo "❄️❄️ Neige forte" ;;
+        77) echo "🌨️ Grains de neige" ;;
+        80|81|82) echo "🌦️ Averses de pluie" ;;
+        85|86) echo "🌨️ Averses de neige" ;;
+        95) echo "⛈️ Orage" ;;
+        96|99) echo "⛈️🧊 Orage avec grêle" ;;
+        *) echo "❓ Inconnu (code $1)" ;;
     esac
 }
-
+json_get() {
+    jq -r "$1" <<< "$RESPONSE"
+}
 # Extraction des données pour l'affichage classique
 get_weather_data() {
-    TEMP=$(echo "$RESPONSE" | jq -r '.current.temperature_2m')
-    TEMP_MAX=$(echo "$RESPONSE" | jq -r '.daily.temperature_2m_max[0]')
-    TEMP_MIN=$(echo "$RESPONSE" | jq -r '.daily.temperature_2m_min[0]')
-    TEMP_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.temperature_2m')
-    APPARENT=$(echo "$RESPONSE" | jq -r '.current.apparent_temperature')
-    HUMIDITY=$(echo "$RESPONSE" | jq -r '.current.relative_humidity_2m')
-    HUM_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.relative_humidity_2m')
-    WIND=$(echo "$RESPONSE" | jq -r '.current.wind_speed_10m')
-    WIND_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.wind_speed_10m')
-    CODE=$(echo "$RESPONSE" | jq -r '.current.weather_code')
-    PRESSURE=$(echo "$RESPONSE" | jq -r '.current.pressure_msl')
-    PRESS_UNIT=$(echo "$RESPONSE" | jq -r '.current_units.pressure_msl')
+    TEMP=$(json_get '.current.temperature_2m')
+    TEMP_MAX=$(json_get '.daily.temperature_2m_max[0]')
+    TEMP_MIN=$(json_get '.daily.temperature_2m_min[0]')
+    APPARENT=$(json_get '.current.apparent_temperature')
+    TEMP_UNIT=$(json_get '.current_units.temperature_2m')    
+    
+    HUMIDITY=$(json_get '.current.relative_humidity_2m')
+    HUM_UNIT=$(json_get '.current_units.relative_humidity_2m')
+    
+    WIND=$(json_get '.current.wind_speed_10m')
+    WIND_UNIT=$(json_get '.current_units.wind_speed_10m')
+    
+    PRESSURE=$(json_get '.current.pressure_msl')
+    PRESS_UNIT=$(json_get '.current_units.pressure_msl')
+    
+    CODE=$(json_get '.current.weather_code')
     CONDITION=$(get_weather_description "$CODE")
+
     LOCATION_STR="$MATCHED_NAME"
     [ -n "$REGION" ] && LOCATION_STR="$LOCATION_STR, $REGION"
     [ -n "$COUNTRY" ] && LOCATION_STR="$LOCATION_STR, $COUNTRY"
     # Extraction du fuseau horaire renvoyé par l'API (ex: America/Toronto)
-    API_TZ=$(echo "$RESPONSE" | jq -r '.timezone // "UTC"')
+    API_TZ=$(json_get '.timezone // "UTC"')
     # Extraction et mise en forme des dates/heures
     LOCAL_TIME=$(date +"%Y-%m-%d %H:%M")
     # Heure exacte du lieu calculée via son fuseau horaire
@@ -183,7 +193,6 @@ display_weather() {
     echo "=================================================="
 }
 
-# --- Début du script ---
 main() {
 
     # Analyse des options (--json, -h, --help)
@@ -198,6 +207,15 @@ main() {
             -h|--help)
                 show_help
                 exit 0
+                ;;
+            -v|--version)
+                echo "$VERSION"
+                exit 0
+                ;;
+            -*)
+                echo "Erreur : option inconnue '$arg'"
+                echo "Utilisez --help pour afficher l'aide."
+                exit 1
                 ;;
             *)
                 ARGS+=("$arg")
@@ -228,4 +246,5 @@ main() {
     # On affiche la météo
     display_weather
 }
+# --- Début du script ---
 main "$@"
