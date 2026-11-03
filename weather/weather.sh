@@ -13,7 +13,7 @@ set -uo pipefail
 #   - curl pour les requêtes réseaux
 
 # Version du script
-VERSION="0.1.0"
+VERSION="0.2.0"
 
 # Fonction d'affichage de l'aide
 show_help() {
@@ -179,15 +179,16 @@ fetch_weather() {
 display_weather() {
     echo "=================================================="
     echo " Météo actuelle à $LOCATION_STR"
+    echo " Latitude : ${LAT}  |  Longitude : ${LON}"
     echo "=================================================="
     echo " Heure locale (ici)  : ${LOCAL_TIME}"
     echo " Heure du lieu       : ${DEST_TIME}"
     echo "--------------------------------------------------"
-    echo " Température 		: ${TEMP} ${TEMP_UNIT} (Ressenti : ${APPARENT} ${TEMP_UNIT})"
-    echo " Température Maximum de la journée  : ${TEMP_MAX} ${TEMP_UNIT}"
-    echo " Température Minimum de la journée  : ${TEMP_MIN} ${TEMP_UNIT}"
-    echo " Conditions  		: ${CONDITION}"    
-    echo " Humidité    		: ${HUMIDITY} ${HUM_UNIT}"
+    echo " Température 		    : ${TEMP} ${TEMP_UNIT} (Ressenti : ${APPARENT} ${TEMP_UNIT})"
+    echo " Maximum aujourd'hui  : ${TEMP_MAX} ${TEMP_UNIT}"
+    echo " Minimum aujourd'hui  : ${TEMP_MIN} ${TEMP_UNIT}"
+    echo " Conditions  		    : ${CONDITION}"    
+    echo " Humidité    		    : ${HUMIDITY} ${HUM_UNIT}"
     echo " Vent        		: ${WIND} ${WIND_UNIT}"
     echo " Pression atmosphérique   : ${PRESSURE} ${PRESS_UNIT}"
     echo "=================================================="
