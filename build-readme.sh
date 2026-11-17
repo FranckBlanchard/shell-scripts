@@ -14,6 +14,7 @@ echo "Génération de la page $OUTPUT_README..."
 
 # 2. Copier l'en-tête de base dans le README principal
 cat "$HEADER_FILE" > "$OUTPUT_README"
+echo "" >> "$OUTPUT_README"
 
 # Ajouter la section "Liste des scripts"
 echo "## 📂 Liste des scripts" >> "$OUTPUT_README"

@@ -14,7 +14,13 @@ set -uo pipefail
 
 # Version du script
 VERSION="0.2.1"
-
+GITHUB_BASE_URL="https://raw.githubusercontent.com/FranckBlanchard/shell-scripts/master/weather"
+SCRIPT_URL="${GITHUB_BASE_URL}/weather.sh"
+VERSION_URL="${GITHUB_BASE_URL}/VERSION"
+# Fonction de téléchargement du script weather.sh
+download_update() {
+    :
+}
 # Fonction d'affichage de l'aide
 show_help() {
     echo "Usage: weather <nom_de_ville> [pays_ou_region] [--json]"
@@ -32,7 +38,20 @@ show_help() {
     echo "  -h, --help   Affiche ce message d'aide"
     echo "  -v, --version Affiche la version du script"
 }
+# Fonction qui affiche la version courante
+show_version() {
+    local latest_version
 
+    echo "weather v$VERSION"
+    latest_version=$(check_latest_version)
+
+    if [ -n "$latest_version" ] && [ "$latest_version" != "$VERSION" ]; then
+        echo
+        echo "Une nouvelle version (v$latest_version) est disponible."
+    else
+        echo "Vous utilisez la dernière version disponible."
+    fi
+}
 # Fonction de vérification des dépendances
 check_command() {
     if ! command -v "$1" &> /dev/null; then
@@ -41,7 +60,10 @@ check_command() {
         exit 1
     fi
 }
-
+# Vérification de la dernière version disponible
+check_latest_version() {
+    curl -fsSL "$VERSION_URL" 2>/dev/null
+}
 # Fonction de géocodage intelligente et tolérante
 get_coordinates() {
     local QUERY="$1"
@@ -88,7 +110,6 @@ get_coordinates() {
     REGION=$(echo "$GEO_RESPONSE" | jq -r ".results[$INDEX].admin1 // \"\"")
     COUNTRY=$(echo "$GEO_RESPONSE" | jq -r ".results[$INDEX].country // \"\"")
 }
-
 # Fonction pour traduire le weather_code WMO
 get_weather_description() {
     case "$1" in
@@ -162,7 +183,7 @@ fetch_weather() {
     local daily_metrics="temperature_2m_max,temperature_2m_min"
 
     local API_URL=$(build_api_url "$current_metrics" "$daily_metrics")
-    RESPONSE=$(curl -s "$API_URL")
+    RESPONSE=$(curl -fsSL "$API_URL")
 
     if [ -z "$RESPONSE" ]; then
         echo "Erreur : Impossible de contacter l'API Open-Meteo." >&2
@@ -210,7 +231,7 @@ main() {
                 exit 0
                 ;;
             -v|--version)
-                echo "$VERSION"
+                show_version
                 exit 0
                 ;;
             -*)
