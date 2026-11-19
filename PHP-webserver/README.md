@@ -10,6 +10,7 @@ en production.
 ### Prérequis
 
 - PHP en ligne de commande (`php`)
+- `curl` pour télécharger le script
 - Un dossier `public/` à la racine du projet PHP
 - L'extension Xdebug, chargée sous le nom `xdebug.so`
 
@@ -19,12 +20,25 @@ dans le script à la configuration de votre environnement.
 
 ### Installation
 
-Copiez `start-webserveur` à la racine de votre projet PHP, puis rendez-le
-exécutable :
+Téléchargez le script directement à la racine de votre projet PHP. Dans le
+terminal, placez-vous d'abord dans ce répertoire :
 
 ```bash
+cd /chemin/vers/votre-projet
+```
+
+Téléchargez ensuite le fichier et rendez-le exécutable :
+
+```bash
+curl -fsSL \
+  -o start-webserveur \
+  https://raw.githubusercontent.com/FranckBlanchard/shell-scripts/master/PHP-webserver/start-webserveur
 chmod +x start-webserveur
 ```
+
+Le projet doit notamment contenir le dossier `public/`, qui sera utilisé comme
+racine du serveur. L'installation peut être vérifiée en lançant le script
+comme indiqué dans la section [Utilisation](#utilisation).
 
 ### Utilisation
 
@@ -39,8 +53,15 @@ navigateur. Pour arrêter le serveur, utilisez `Ctrl+C` dans le terminal.
 
 ### Personnalisation
 
-Le port, le dossier racine et les options PHP/Xdebug sont définis dans le
-script `start-webserveur`. Modifiez-les selon les besoins de votre projet.
+Les paramètres sont regroupés au début du script `start-webserveur` :
+
+- `HOST`, `PORT` et `DOCUMENT_ROOT` définissent l'adresse, le port et le dossier
+  servi.
+- `DISPLAY_ERRORS` contrôle l'affichage des erreurs PHP.
+- Les variables `XDEBUG_*` configurent le débogage à distance.
+
+Modifiez ces valeurs selon les besoins de votre projet. Les options passées à
+PHP sont regroupées dans le tableau `PHP_OPTIONS`, une option par ligne.
 
 Consultez la [documentation du serveur Web intégré de PHP](https://www.php.net/manual/fr/features.commandline.webserver.php)
 pour plus d'informations.

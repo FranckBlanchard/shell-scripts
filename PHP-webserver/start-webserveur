@@ -1,2 +1,23 @@
 #!/bin/bash
-php -S localhost:8000 -ddisplay_errors=1 -dzend_extension=xdebug.so -dxdebug.remote_enable=1 -dxdebug.remote_autostart=1 -dxdebug.remote_port=3004 -t public
+
+# Configuration du serveur
+HOST="localhost"
+PORT="8000"
+DOCUMENT_ROOT="public"
+DISPLAY_ERRORS="1"
+
+# Options Xdebug 2
+XDEBUG_EXTENSION="xdebug.so"
+XDEBUG_REMOTE_ENABLE="1"
+XDEBUG_REMOTE_AUTOSTART="1"
+XDEBUG_REMOTE_PORT="3004"
+
+PHP_OPTIONS=(
+    -d "display_errors=${DISPLAY_ERRORS}"
+    -d "zend_extension=${XDEBUG_EXTENSION}"
+    -d "xdebug.remote_enable=${XDEBUG_REMOTE_ENABLE}"
+    -d "xdebug.remote_autostart=${XDEBUG_REMOTE_AUTOSTART}"
+    -d "xdebug.remote_port=${XDEBUG_REMOTE_PORT}"
+)
+
+php -S "${HOST}:${PORT}" "${PHP_OPTIONS[@]}" -t "$DOCUMENT_ROOT"
