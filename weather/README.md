@@ -20,15 +20,19 @@ sudo apt install curl jq
 
 ### Installation
 
-Les commandes suivantes installent le script dans `~/.local/bin` :
+Téléchargez puis lancez le programme d'installation :
 
 ```bash
-mkdir -p "$HOME/.local/bin"
 curl -fsSL \
-  -o "$HOME/.local/bin/weather" \
-  https://raw.githubusercontent.com/FranckBlanchard/shell-scripts/master/weather/weather.sh
-chmod +x "$HOME/.local/bin/weather"
+  -o weather-install.sh \
+  https://raw.githubusercontent.com/FranckBlanchard/shell-scripts/master/weather/install.sh &&
+bash weather-install.sh
+rm weather-install.sh
 ```
+
+L'installation propose `~/.local/bin/weather` et demande confirmation avant
+d'installer ou de remplacer le fichier. Elle télécharge la dernière version
+publiée et vérifie le script avant de l'installer.
 
 Assurez-vous que `~/.local/bin` figure dans votre variable `PATH`. Pour la
 session courante, vous pouvez l'ajouter avec :
@@ -56,10 +60,31 @@ Pour afficher la réponse météo au format JSON :
 weather Paris --json
 ```
 
+Pour mettre à jour le script installé :
+
+```bash
+weather --update
+weather -u
+```
+
 ### Options
 
 | Option | Description |
 | --- | --- |
 | `--json` | Affiche la réponse météo au format JSON |
+| `-u`, `--update` | Télécharge et installe la dernière version publiée |
 | `-h`, `--help` | Affiche l'aide |
 | `-v`, `--version` | Affiche la version du script et vérifie si une version plus récente est disponible |
+
+### Publication d'une version (mainteneurs)
+
+Depuis le répertoire `weather`, lancez `bash commit.sh`. Le script demande si le
+commit publie une nouvelle version :
+
+- **Oui** : incrémente `VERSION` et la version de `weather.sh`, puis crée un
+  tag annoté `weather-vX.Y.Z`.
+- **Non** : crée un commit de maintenance sans changer la version ni créer de
+  tag.
+
+Lors de la publication, le tag est poussé avant la branche afin que la version
+annoncée dans `VERSION` soit déjà téléchargeable.

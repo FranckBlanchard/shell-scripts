@@ -13,17 +13,118 @@ set -uo pipefail
 #   - curl pour les requêtes réseaux
 
 # Version du script
-VERSION="0.2.1"
-GITHUB_BASE_URL="https://raw.githubusercontent.com/FranckBlanchard/shell-scripts/master/weather"
-SCRIPT_URL="${GITHUB_BASE_URL}/weather.sh"
-VERSION_URL="${GITHUB_BASE_URL}/VERSION"
-# Fonction de téléchargement du script weather.sh
+VERSION="0.3.0"
+GITHUB_RAW_BASE="https://raw.githubusercontent.com/FranckBlanchard/shell-scripts"
+VERSION_URL="${GITHUB_RAW_BASE}/master/weather/VERSION"
+
+is_valid_version() {
+    [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+version_is_newer() {
+    local -a latest_parts current_parts
+    local index
+
+    IFS='.' read -r -a latest_parts <<< "$1"
+    IFS='.' read -r -a current_parts <<< "$2"
+
+    for ((index = 0; index < 3; index++)); do
+        if (( 10#${latest_parts[index]} > 10#${current_parts[index]} )); then
+            return 0
+        elif (( 10#${latest_parts[index]} < 10#${current_parts[index]} )); then
+            return 1
+        fi
+    done
+
+    return 1
+}
+
 download_update() {
-    :
+    local source_path="${BASH_SOURCE[0]}"
+    local installed_path
+    local latest_version
+    local script_url
+    local temp_file
+
+    if ! command -v readlink >/dev/null 2>&1; then
+        echo "Erreur : la commande 'readlink' est requise pour localiser le script." >&2
+        return 1
+    fi
+
+    if [[ "$source_path" != */* ]]; then
+        source_path=$(command -v -- "$source_path") || {
+            echo "Erreur : impossible de localiser le script weather." >&2
+            return 1
+        }
+    fi
+
+    installed_path=$(readlink -f -- "$source_path") || {
+        echo "Erreur : impossible de déterminer l'emplacement du script." >&2
+        return 1
+    }
+
+    if ! latest_version=$(check_latest_version); then
+        echo "Erreur : impossible de récupérer la dernière version." >&2
+        return 1
+    fi
+
+    if ! is_valid_version "$latest_version"; then
+        echo "Erreur : numéro de version distant invalide : '$latest_version'." >&2
+        return 1
+    fi
+
+    if [[ "$latest_version" == "$VERSION" ]]; then
+        echo "weather v$VERSION est déjà à jour."
+        return 0
+    fi
+
+    if ! version_is_newer "$latest_version" "$VERSION"; then
+        echo "Erreur : la version distante ($latest_version) est plus ancienne que la version installée ($VERSION)." >&2
+        return 1
+    fi
+
+    script_url="${GITHUB_RAW_BASE}/weather-v${latest_version}/weather/weather.sh"
+    temp_file=$(mktemp "${installed_path}.XXXXXX") || {
+        echo "Erreur : impossible de créer un fichier temporaire près de '$installed_path'." >&2
+        return 1
+    }
+
+    if ! curl -fsSL --connect-timeout 10 --max-time 60 -o "$temp_file" "$script_url"; then
+        rm -f -- "$temp_file"
+        echo "Erreur : téléchargement de weather v$latest_version impossible." >&2
+        return 1
+    fi
+
+    if ! grep -Fqx -- "VERSION=\"$latest_version\"" "$temp_file"; then
+        rm -f -- "$temp_file"
+        echo "Erreur : le script téléchargé ne correspond pas à la version $latest_version." >&2
+        return 1
+    fi
+
+    if ! bash -n "$temp_file"; then
+        rm -f -- "$temp_file"
+        echo "Erreur : le script téléchargé contient une erreur de syntaxe." >&2
+        return 1
+    fi
+
+    if ! chmod --reference="$installed_path" "$temp_file"; then
+        rm -f -- "$temp_file"
+        echo "Erreur : impossible de préserver les permissions de '$installed_path'." >&2
+        return 1
+    fi
+
+    if ! mv -f -- "$temp_file" "$installed_path"; then
+        rm -f -- "$temp_file"
+        echo "Erreur : impossible de remplacer '$installed_path'. Vérifiez les permissions." >&2
+        return 1
+    fi
+
+    echo "weather a été mis à jour vers v$latest_version."
+    echo "Fichier remplacé : $installed_path"
 }
 # Fonction d'affichage de l'aide
 show_help() {
-    echo "Usage: weather <nom_de_ville> [pays_ou_region] [--json]"
+    echo "Usage: weather <nom_de_ville> [pays_ou_region] [options]"
     echo ""
     echo "Affiche la météo actuelle pour la ville spécifiée."
     echo ""
@@ -35,6 +136,7 @@ show_help() {
     echo ""
     echo "Options :"
     echo "  --json       Affiche le résultat brut au format JSON"
+    echo "  -u, --update Met à jour weather vers la dernière version publiée"
     echo "  -h, --help   Affiche ce message d'aide"
     echo "  -v, --version Affiche la version du script"
 }
@@ -43,9 +145,15 @@ show_version() {
     local latest_version
 
     echo "weather v$VERSION"
-    latest_version=$(check_latest_version)
+    if ! latest_version=$(check_latest_version); then
+        echo "Impossible de vérifier la dernière version (connexion indisponible)." >&2
+        return 0
+    fi
 
-    if [ -n "$latest_version" ] && [ "$latest_version" != "$VERSION" ]; then
+    if ! is_valid_version "$latest_version"; then
+        echo "Erreur : numéro de version distant invalide : '$latest_version'." >&2
+        return 1
+    elif version_is_newer "$latest_version" "$VERSION"; then
         echo
         echo "Une nouvelle version (v$latest_version) est disponible."
     else
@@ -62,7 +170,7 @@ check_command() {
 }
 # Vérification de la dernière version disponible
 check_latest_version() {
-    curl -fsSL "$VERSION_URL" 2>/dev/null
+    curl -fsSL --connect-timeout 10 --max-time 30 "$VERSION_URL"
 }
 # Fonction de géocodage intelligente et tolérante
 get_coordinates() {
@@ -217,14 +325,18 @@ display_weather() {
 
 main() {
 
-    # Analyse des options (--json, -h, --help)
+    # Analyse des options
     RAW_JSON=false
+    UPDATE=false
     ARGS=()
 
     for arg in "$@"; do
         case "$arg" in
             --json)
                 RAW_JSON=true
+                ;;
+            -u|--update)
+                UPDATE=true
                 ;;
             -h|--help)
                 show_help
@@ -244,6 +356,15 @@ main() {
                 ;;
         esac
     done
+    if [ "$UPDATE" = true ]; then
+        if [ "${#ARGS[@]}" -ne 0 ]; then
+            echo "Erreur : --update ne peut pas être combiné avec une ville." >&2
+            return 2
+        fi
+        check_command curl
+        download_update
+        return $?
+    fi
     # Vérification : si aucun nom de ville n'est fourni, afficher l'aide et quitter
     if [ "${#ARGS[@]}" -eq 0 ]; then
         show_help

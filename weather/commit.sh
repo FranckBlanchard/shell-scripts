@@ -31,7 +31,7 @@ echo
 #
 # Le type choisi détermine :
 # - le préfixe du message Git (feat, fix, refactor, etc.)
-# - la règle d'incrémentation de version
+# - la règle d'incrémentation si une nouvelle version est publiée
 #
 # Convention :
 #   feat      : nouvelle fonctionnalité      -> X.Y+1.0
@@ -84,27 +84,46 @@ echo
 #
 CURRENT_VERSION=$(<"$VERSION_FILE")
 
-IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Erreur : version invalide dans $VERSION_FILE : '$CURRENT_VERSION'."
+    exit 1
+fi
 
 #
-# Calcul nouvelle version
+# Choix d'une publication versionnée ou d'un commit de maintenance
 #
-case "$TYPE" in
-    feat)
-        MINOR=$((MINOR + 1))
-        PATCH=0
-        ;;
-    major)
-        MAJOR=$((MAJOR + 1))
-        MINOR=0
-        PATCH=0
-        ;;
-    *)
-        PATCH=$((PATCH + 1))
-        ;;
-esac
+read -rp "Publier une nouvelle version et créer son tag ? [O/n] : " CONFIRM_RELEASE
 
-NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+if [[ "$CONFIRM_RELEASE" =~ ^[Nn]$ ]]; then
+    CREATE_RELEASE=false
+    NEW_VERSION="$CURRENT_VERSION"
+else
+    CREATE_RELEASE=true
+    IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+    case "$TYPE" in
+        feat)
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            ;;
+        major)
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            ;;
+        *)
+            PATCH=$((PATCH + 1))
+            ;;
+    esac
+
+    NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+    TAG_NAME="${PROJECT_NAME}-v${NEW_VERSION}"
+
+    if git rev-parse --quiet --verify "refs/tags/$TAG_NAME" >/dev/null; then
+        echo "Erreur : le tag '$TAG_NAME' existe déjà."
+        exit 1
+    fi
+fi
 
 #
 # Message
@@ -117,7 +136,13 @@ echo
 echo "-------------------------------------"
 echo "Projet   : $PROJECT_NAME"
 echo "Type     : $TYPE"
-echo "Version  : $CURRENT_VERSION -> $NEW_VERSION"
+if [[ "$CREATE_RELEASE" == true ]]; then
+    echo "Version  : $CURRENT_VERSION -> $NEW_VERSION"
+    echo "Tag      : $TAG_NAME"
+else
+    echo "Mode     : commit de maintenance (sans version ni tag)"
+    echo "Version  : $CURRENT_VERSION (inchangée)"
+fi
 echo
 echo "$COMMIT_MESSAGE"
 echo "-------------------------------------"
@@ -130,24 +155,23 @@ if [[ "$CONFIRM_COMMIT" =~ ^[Nn]$ ]]; then
     exit 0
 fi
 
-#
-# Mise à jour du fichier VERSION
-#
-echo "$NEW_VERSION" > "$VERSION_FILE"
+if [[ "$CREATE_RELEASE" == true ]]; then
+    #
+    # Mise à jour du fichier VERSION et du script principal
+    #
+    echo "$NEW_VERSION" > "$VERSION_FILE"
 
-#
-# Mise à jour de la variable VERSION dans le script principal
-#
-SCRIPT_FILE="${PROJECT_NAME}.sh"
+    SCRIPT_FILE="${PROJECT_NAME}.sh"
+    if [[ -f "$SCRIPT_FILE" ]]; then
+        sed -i \
+            "s/^VERSION=\"[0-9.]*\"$/VERSION=\"$NEW_VERSION\"/" \
+            "$SCRIPT_FILE"
 
-if [[ -f "$SCRIPT_FILE" ]]; then
-    sed -i \
-        "s/^VERSION=\"[0-9.]*\"$/VERSION=\"$NEW_VERSION\"/" \
-        "$SCRIPT_FILE"
-
-    echo "Version mise à jour dans $SCRIPT_FILE"
-else
-    echo "Attention : $SCRIPT_FILE introuvable."
+        echo "Version mise à jour dans $SCRIPT_FILE"
+    else
+        echo "Erreur : $SCRIPT_FILE introuvable; impossible de publier la version."
+        exit 1
+    fi
 fi
 
 #
@@ -181,12 +205,20 @@ git commit -m "$COMMIT_MESSAGE"
 echo
 echo "✅ Commit créé avec succès"
 
+if [[ "$CREATE_RELEASE" == true ]]; then
+    git tag -a "$TAG_NAME" -m "$TAG_NAME"
+    echo "✅ Tag créé : $TAG_NAME"
+fi
+
 #
 # Demande si les modifications doivent être publiées
 #
 read -rp "Publier sur GitHub (git push) ? [O/n] : " CONFIRM_PUSH
 
 if [[ ! "$CONFIRM_PUSH" =~ ^[Nn]$ ]]; then
+    if [[ "$CREATE_RELEASE" == true ]]; then
+        git push origin "$TAG_NAME"
+    fi
     git push
 
     echo
@@ -197,4 +229,8 @@ else
 fi
 
 echo
-echo "✅ Version : $NEW_VERSION"
+if [[ "$CREATE_RELEASE" == true ]]; then
+    echo "✅ Version publiée : $NEW_VERSION ($TAG_NAME)"
+else
+    echo "ℹ️ Version inchangée : $CURRENT_VERSION"
+fi
